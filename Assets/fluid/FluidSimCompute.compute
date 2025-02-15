@@ -1,0 +1,151 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Integrate
+#pragma kernel ComputeDensityPressure
+#pragma kernel ComputeForces
+
+struct Particle{
+     float Pressure;
+     float Density;
+     float3 CurrentForce;
+     float3 Velocity;
+     float3 Position;
+};
+
+
+RWStructuredBuffer<Particle> particles;
+
+float particlesMass;
+float viscosity;
+float gasConstant;
+float boundDamping;
+float restDensity;
+
+float radius1;
+float radius2;
+float radius3;
+float radius4;
+float radius5;
+
+float pi;
+int particleLength;
+float timeStep;
+float3 boxSize;
+
+
+[numthreads(100,1,1)]
+void Integrate (uint3 id : SV_DispatchThreadID)
+{
+    //particles[id.x].CurrentForce = float3(0,-9.81 * particlesMass,0);
+    
+    float3 vel = particles[id.x].Velocity + ((particles[id.x].CurrentForce/particlesMass )* timeStep);
+    particles[id.x].Position += vel * timeStep;
+
+    float3 topRight = boxSize /2;
+    float3 bottomLeft = -boxSize /2;
+
+    if(particles[id.x].Position.x < bottomLeft.x + radius1){
+        vel.x *= boundDamping;
+        particles[id.x].Position.x = bottomLeft.x + radius1;
+    }
+    if(particles[id.x].Position.x > topRight.x - radius1){
+        vel.x *= boundDamping;
+        particles[id.x].Position.x = topRight.x - radius1;
+    }
+    if(particles[id.x].Position.y < bottomLeft.y + radius1){
+        vel.y *= boundDamping;
+        particles[id.x].Position.y = bottomLeft.y + radius1;
+    }
+    if(particles[id.x].Position.y > topRight.y - radius1){
+        vel.y *= boundDamping;
+        particles[id.x].Position.y = topRight.y - radius1;
+    }
+    if(particles[id.x].Position.z < bottomLeft.z + radius1){
+        vel.z *= boundDamping;
+        particles[id.x].Position.z = bottomLeft.z + radius1;
+    }
+    if(particles[id.x].Position.z > topRight.z - radius1){
+        vel.z *= boundDamping;
+        particles[id.x].Position.z = topRight.z - radius1;
+    }
+    particles[id.x].Velocity = vel;
+}
+
+float StdKernel(float distanceSqrd)
+{
+    float x = 1.0f - distanceSqrd / radius2;
+    return 315.0f / (64.0f * pi * radius3) * x * x *x;
+}
+
+float SpikyKernelFirstDerivative(float distance)
+{
+    float x = 1.0f - distance / radius1;
+    return -45.0f / (pi * radius4) * x * x;
+}
+
+float SpikyKernelSecondDerivative(float distance)
+{
+    float x = 1.0f - distance / radius1;
+    return 90.0f / (pi * radius5) * x;
+}
+
+float3 SpikyKernelGradient ( float distance ,float3 direction)
+{
+    return SpikyKernelFirstDerivative(distance) * direction;
+}
+[numthreads(100,1,1)]
+void ComputeDensityPressure(uint3 id :SV_DispatchThreadID)
+{
+    float3 origin = particles[id.x].Position;
+    float sum = 0;
+
+    for(int i = 0; i< particleLength;i++)
+    {
+        float3 diff = origin - particles[i].Position;
+        float r2 = dot(diff,diff);
+        if (radius2 * 0.004 > r2 * 0.004)
+        {
+            sum += StdKernel(r2 * 0.004);
+        }
+    }
+        particles[id.x].Density = sum * particlesMass + 0.000001f;
+        particles[id.x].Pressure = gasConstant * (particles[id.x].Density - restDensity);
+}
+
+[numthreads(100,1,1)]
+void ComputeForces(uint3 id :SV_DispatchThreadID)
+{
+    float3 origin = particles[id.x].Position;
+    float3 density2 = particles[id.x].Density * particles[id.x].Density;
+    float mass2 = particlesMass * particlesMass;
+    float3 pressureForce = float3(0,0,0);
+    float3 viscosityForce = float3(0,0,0);
+
+    
+    for(int i =0 ;i <particleLength ;i++)
+    {
+        if (origin.x == particles[i].Position.x && origin.y == particles[i].Position.y && origin.z == particles[i].Position.z)
+        {
+            continue;
+        }
+
+        float dist = distance(particles[i].Position,origin);
+        if(dist>= radius1 * 2 )
+        {
+            continue;
+        }
+
+        float3 pressureGradientDir = normalize(particles[id.x].Position - particles[i].Position);
+        float3 pressureContrib = mass2 * SpikyKernelGradient(dist,pressureGradientDir);
+        pressureContrib *= (particles[id.x].Pressure / density2 + particles[i].Pressure /( particles[i].Density  * particles[i].Density));
+
+        float3 viscosityContrib = viscosity * mass2 * (particles[i].Velocity - particles[id.x].Velocity) / particles[i].Density;
+        viscosityContrib *= SpikyKernelSecondDerivative(dist);
+
+        pressureForce += pressureContrib;
+        viscosityForce += viscosityContrib;
+        
+    }
+
+        particles[id.x].CurrentForce = float3(0,-19.81 * particlesMass,0) - pressureForce + viscosityForce;
+
+}

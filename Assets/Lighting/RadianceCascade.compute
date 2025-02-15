@@ -1,0 +1,29 @@
+#include "UnityRayQuery.cginc"
+
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RaytracingAccelerationStructure Scene;
+RWTexture2D<float4> Result;
+
+[numthreads(8,4,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    const uint rayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+    UnityRayQuery<rayFlags> rayQuery;
+
+    RayDesc ray;
+    ray.Origin = float3(0, 0, 0);
+    ray.Direction = normalize(float3(id.xy, 1));
+    ray.TMin = 0;
+    ray.TMax = 10000;
+
+    rayQuery.TraceRayInline(Scene,rayFlags,0xff,ray);
+    rayQuery.Proceed();
+
+    
+    
+    Result[id.xy] = (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT);
+}

@@ -1,0 +1,62 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+struct DrawVertex
+{
+    float3 pos;
+    float3 height;
+};
+
+struct DrawTriangle
+{
+    float3 lightingNormalWS;
+    DrawVertex vertices[3];
+};
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+
+AppendStructuredBuffer<DrawTriangle> DrawTriangles;
+
+float baseWidth;
+float height;
+
+struct IndirectArgs
+{
+    uint numVerticesPerInstance;
+    uint numInstances;
+    uint startOffset;
+    uint startIndex;
+};
+RWStructuredBuffer<IndirectArgs> indirectArgs;
+int NumSourceTrianges;
+float4x4 localToWorld;
+
+void GenerateGrass(float3 position,int1 lod = 0)
+{
+    //for now just generate a triangle
+}
+
+void GetCenterAndBasis(float3 v0, float3 v1, float3 v2, out float3 center, out float3 normal, out float3 tangent)
+{
+    float3 edge1 = v1 - v0;
+    float3 edge2 = v2 - v0;
+    normal = normalize(cross(edge1, edge2));
+    center = (v0 + v1 + v2) / 3.0f;
+    tangent = normalize(edge1);
+}
+
+DrawVertex MakeBaseDrawVertex(Sour)
+
+[numthreads(128,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if(id.x >= NumSourceTrianges)
+        return;
+
+    int triIndex = id.x * 3;
+    float3 positionWs , normalWs;
+
+    float3x3 tangentToWorld;
+    
+}

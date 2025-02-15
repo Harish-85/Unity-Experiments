@@ -1,0 +1,23 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+struct vertexData
+{
+float3 pos;
+float3 normal;
+float2 uv;
+};
+
+RWStructuredBuffer<vertexData> vertexBuffer;
+
+float _time;
+
+
+[numthreads(32,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    float3 pos = vertexBuffer[id.x].pos;
+    float dist = 6.0f - distance(pos.xz,float2(0,0));
+    pos.y = sin(_time * 2.0f + dist) * 0.25f;
+    vertexBuffer[id.x].pos = pos;
+}
