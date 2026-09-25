@@ -1,7 +1,7 @@
-## Experiments
+# Unity Experiments
  Just a bunch of random stuff i work on in Unity
 
-# This contains the following mini projects
+## This contains the following mini projects
  1. ASCII Shader
     A full screen shader that renders the world using ASCII characters
  2. Interior Parallax Shader
