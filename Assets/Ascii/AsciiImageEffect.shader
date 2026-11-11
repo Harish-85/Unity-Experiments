@@ -62,9 +62,9 @@ Shader "Hidden/NewImageEffectShader"
                 //downsample to the _outputResolution
                 float2 downscaledUV = floor( i.uv * _outputResolution) / _outputResolution;
                 fixed4 col = tex2D(_MainTex, downscaledUV);
-                //float luminance = dot(col.rgb, float3(0.299, 0.587, 0.114));
+                float luminance = dot(col.rgb, float3(0.299, 0.587, 0.114));
                 //get the magnitude of the color
-                float luminance = length(col.rgb);
+                //float luminance = length(col.rgb);
                 float2 textUV = frac(i.uv * _outputResolution);
                 float4 textCol = sampleText(floor(luminance * 9),textUV);
 
